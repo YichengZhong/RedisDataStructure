@@ -49,3 +49,15 @@ sds sdsnew(const char *init);
 
 //根据给定的初始化字符串 init 和字符串长度 initlen,创建一个新的 sds
 sds sdsnewlen(const void *init, size_t initlen);
+
+//创建空串
+sds sdsempty(void);
+
+//释放给定的SDS
+void sdsfree(sds s);
+
+//创建一个给定SDS的副本
+sds sdsdup(const sds s);
+
+//清空SDS保存的字符串内容
+void sdsclear(sds s);

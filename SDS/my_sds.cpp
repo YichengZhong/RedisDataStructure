@@ -75,6 +75,65 @@ sds sdsnewlen(const void *init, size_t initlen) {
 	return (char*)sh->buf;
 }
 
+/*
+ * 创建并返回一个只保存了空字符串 "" 的 sds
+ *
+ * 返回值
+ *  sds ：创建成功返回 sdshdr 相对应的 sds
+ *        创建失败返回 NULL
+ *
+ * 复杂度
+ *  T = O(1)
+ */
+sds sdsempty(void) {
+	return sdsnewlen("", 0);
+}
+
+/*
+ * 释放给定的 sds
+ *
+ * 复杂度
+ *  T = O(N)
+ */
+void sdsfree(sds s) {
+	if (s == NULL) return;
+	free(s - sizeof(struct sdshdr));
+}
+
+/*
+ * 复制给定 sds 的副本
+ *
+ * 返回值
+ *  sds ：创建成功返回输入 sds 的副本
+ *        创建失败返回 NULL
+ *
+ * 复杂度
+ *  T = O(N)
+ */
+sds sdsdup(const sds s) {
+	return sdsnewlen(s, sdslen(s));
+}
+
+/*
+ * 在不释放 SDS 的字符串空间的情况下，
+ * 重置 SDS 所保存的字符串为空字符串。
+ *
+ * 复杂度
+ *  T = O(1)
+ */
+void sdsclear(sds s) {
+
+	// 取出 sdshdr
+	struct sdshdr *sh = (sdshdr*)(s - (sizeof(struct sdshdr)));
+
+	// 重新计算属性
+	sh->free += sh->len;
+	sh->len = 0;
+
+	// 将结束符放到最前面（相当于惰性地删除 buf 中的内容）
+	sh->buf[0] = '\0';
+}
+
 int main()
 {
 	sds  myredis=sdsnew("My_Redis");
