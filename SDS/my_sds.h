@@ -61,3 +61,22 @@ sds sdsdup(const sds s);
 
 //清空SDS保存的字符串内容
 void sdsclear(sds s);
+
+//将给定的C字符串拼接到SDS字符串的末尾
+sds sdscat(sds s, const char *t);
+
+//将给定的SDS字符串拼接到SDS字符串的末尾
+sds sdscatsds(sds s, const sds t);
+
+sds sdscatlen(sds s, const void *t, size_t len);
+
+//将给定的C字符串复制到SDS，覆盖原有内容
+sds sdscpy(sds s, const char *t);
+
+sds sdscpylen(sds s, const char *t, size_t len);
+
+//将空串补充到len长度
+sds sdsgrowzero(sds s, size_t len);
+
+//开辟SDS最核心的函数，开辟空间使用
+sds sdsMakeRoomFor(sds s, size_t addlen);
