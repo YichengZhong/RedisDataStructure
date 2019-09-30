@@ -95,11 +95,21 @@ typedef struct list {
 #define listGetMatchMethod(l) ((l)->match)
 
 /* Prototypes */
+//创建一个空的链表
 list *listCreate(void);
+
+//释放链表，以及链表节点
 void listRelease(list *list);
+
+//在链表头新增一个节点
 list *listAddNodeHead(list *list, void *value);
+
+//在链表尾新增一个节点
 list *listAddNodeTail(list *list, void *value);
+
+//在old_node前或者后新增节点
 list *listInsertNode(list *list, listNode *old_node, void *value, int after);
+
 void listDelNode(list *list, listNode *node);
 listIter *listGetIterator(list *list, int direction);
 listNode *listNext(listIter *iter);
