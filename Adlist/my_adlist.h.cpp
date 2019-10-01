@@ -490,3 +490,40 @@ void listRotate(list *list)
     tail->next = list->head;
     list->head = tail;
 }
+
+//判断链表是否为空
+//T(1)
+bool listIsEmpty(list *list)
+{
+	if (0==listLength(list))
+	{
+		return true;
+	}
+
+	return false;
+}
+
+//调用resize(n)将list的长度改为只容纳n个元素，超出的元素将被删除。
+//如果n比list原来的长度长，那么默认超出的部分元素置为0。
+list * listResize(list *list,int n)
+{
+	//保护
+	if(NULL==list || 0==n)
+	{
+		return NULL;
+	}
+
+	if (n==listLength(list))
+	{
+		return list;
+	}
+
+	if (n<listLength(list))
+	{
+
+	} 
+	else
+	{
+
+	}
+}
