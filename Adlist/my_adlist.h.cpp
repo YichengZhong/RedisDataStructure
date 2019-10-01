@@ -450,7 +450,8 @@ listNode *listIndex(list *list, long index)
  *
  * T = O(1)
  */
-void listRewind(list *list, listIter *li) {
+void listRewind(list *list, listIter *li)
+{
     li->next = list->head;
     li->direction = AL_START_HEAD;
 }
@@ -504,8 +505,8 @@ bool listIsEmpty(list *list)
 }
 
 //调用resize(n)将list的长度改为只容纳n个元素，超出的元素将被删除。
-//如果n比list原来的长度长，那么默认超出的部分元素置为0。
-list * listResize(list *list,int n)
+//如果n比list原来的长度长，那么默认超出的部分元素置为vaule。
+list * listResize(list *list,int n,void *value)
 {
 	//保护
 	if(NULL==list || 0==n)
@@ -520,10 +521,31 @@ list * listResize(list *list,int n)
 
 	if (n<listLength(list))
 	{
+		while (n!=0)
+		{
+			if (listAddNodeTail(list, value)!=NULL)
+			{
+				n--;
+			}
+			else
+			{
+				return NULL;
+			}
+			
+		}
 
+		return list;
 	} 
 	else
 	{
+		while (n!=0)
+		{
+			listDelNode(list, listLast(list));
+			n--;
+		}
 
+		return list;
 	}
+
+	return list;
 }

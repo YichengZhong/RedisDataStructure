@@ -143,7 +143,7 @@ bool listIsEmpty(list *list);
 
 //调用resize(n)将list的长度改为只容纳n个元素，超出的元素将被删除。
 //如果n比list原来的长度长，那么默认超出的部分元素置为0。
-list * listResize(list *list,int n);
+list * listResize(list *list,int n,void *value);
 
 /* Directions for iterators
  *
