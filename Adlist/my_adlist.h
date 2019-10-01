@@ -110,15 +110,32 @@ list *listAddNodeTail(list *list, void *value);
 //在old_node前或者后新增节点
 list *listInsertNode(list *list, listNode *old_node, void *value, int after);
 
+//删除指定节点
 void listDelNode(list *list, listNode *node);
+
+//为给定链表创建一个迭代器
 listIter *listGetIterator(list *list, int direction);
+
+//返回迭代器当前所指向的节点
 listNode *listNext(listIter *iter);
+
+//释放迭代器
 void listReleaseIterator(listIter *iter);
+
+//复制整个链表
 list *listDup(list *orig);
+
+//查找链表 list 中值和 key 匹配的节点
 listNode *listSearchKey(list *list, void *key);
+
+//返回链表在给定索引上的值
 listNode *listIndex(list *list, long index);
+
+
 void listRewind(list *list, listIter *li);
 void listRewindTail(list *list, listIter *li);
+
+//取出链表的表尾节点，并将它移动到表头，成为新的表头节点。
 void listRotate(list *list);
 
 /* Directions for iterators
