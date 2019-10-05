@@ -38,7 +38,10 @@ void SkipList::NewList()
 
 void SkipList::NewNodeWithLevel(const int& level,Node& node)
 {    
-	//新结点空间大小    
+	//新结点空间大小   
+	//sizeof(nodeStructure)存储节点数据信息
+	//sizeof(Node)存储指向不同层的指针
+
 	int total_size = sizeof(nodeStructure) + level*sizeof(Node);   
 	//申请空间    
 	node = (Node)malloc(total_size);    
@@ -90,7 +93,8 @@ bool SkipList::Insert(const KeyType& key,const ValueType& value)
 	Node x = list_->header;   
 	
 	//寻找key所要插入的位置    
-	//保存大约key的位置信息    
+	//保存大约key的位置信息
+	//保存每一层的信息
 	for(i = list_->level; i >= 0; --i)
 	{        
 		while(x->forward[i]->key < key)

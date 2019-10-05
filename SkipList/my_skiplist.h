@@ -1,6 +1,8 @@
 #include <stddef.h>
 #include "random.h" 
 
+//https://blog.csdn.net/ict2014/article/details/17394259
+
 //定义调试开关
 #define Debug 
 
@@ -17,7 +19,7 @@ struct nodeStructure
 {	
 	KeyType key;	
 	ValueType value;	
-	Node forward[1];
+	Node forward[1]; //其实是不定长数组
 };	
 
 //定义跳跃表
@@ -33,11 +35,15 @@ class SkipList
 public:    
 	//初始化表结构   
 	SkipList():rnd_(0xdeadbeef)    
-	{ NewList(); }        
+	{ 
+		NewList(); 
+	}        
 	
 	//释放内存空间    
 	~SkipList()
-	{ FreeList(); }     
+	{
+		FreeList();
+	}     
 	
 	//搜索key，保存结果至value   
 	//找到，返回true    
