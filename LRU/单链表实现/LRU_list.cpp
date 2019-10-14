@@ -34,6 +34,8 @@ public:
         if (it!=caches.end()) //已经存在其中  
         {
             caches.erase(it);
+            pair<int, int > tmpPair = make_pair(key, value);
+            caches.push_front(tmpPair);
         }
         else //不存在其中  
         {
