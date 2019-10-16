@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <iostream>
 #include "my_sds.h"
+#include "my_adlist.h"
 using namespace std;
 
 /*
@@ -348,11 +349,8 @@ sds sdsgrowzero(sds s, size_t len) {
 	return s;
 }
 
-
-int main()
+//两个SDS比较
+int sdscmp(sds s1, sds s2)
 {
-	sds  myredis=sdsnew("My_Redis");
-	cout << myredis << endl;
-	return 0;
+	return strcmp(s1, s2);
 }
-

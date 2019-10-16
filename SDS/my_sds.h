@@ -80,3 +80,6 @@ sds sdsgrowzero(sds s, size_t len);
 
 //开辟SDS最核心的函数，开辟空间使用
 sds sdsMakeRoomFor(sds s, size_t addlen);
+
+//两个SDS比较
+int sdscmp(sds s1, sds s2);
