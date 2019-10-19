@@ -3,26 +3,20 @@
 #include <string.h>
 #include "my_intset.h"
 #include "malloc.h"
+#include "endianconv.h"
 
-//默认采用小端
-/* Note that these encodings are ordered, so:
- * INTSET_ENC_INT16 < INTSET_ENC_INT32 < INTSET_ENC_INT64. */
- 
 /*
-* intset 的编码方式
-*/
+ * intset 的编码方式
+ */
 #define INTSET_ENC_INT16 (sizeof(int16_t))
 #define INTSET_ENC_INT32 (sizeof(int32_t))
 #define INTSET_ENC_INT64 (sizeof(int64_t))
 
-  /* Return the required encoding for the provided value.
-   *
-   * 返回适用于传入值 v 的编码方式
-   *
-   * T = O(1)
-   */
-static uint8_t _intsetValueEncoding(int64_t v) 
-{
+ /*返回适用于传入值 v 的编码方式
+  *
+  * T = O(1)
+  */
+static uint8_t _intsetValueEncoding(int64_t v) {
 	if (v < INT32_MIN || v > INT32_MAX)
 		return INTSET_ENC_INT64;
 	else if (v < INT16_MIN || v > INT16_MAX)
@@ -31,9 +25,7 @@ static uint8_t _intsetValueEncoding(int64_t v)
 		return INTSET_ENC_INT16;
 }
 
-/* Resize the intset
- *
- * 调整整数集合的内存空间大小
+/* 调整整数集合的内存空间大小
  *
  * 如果调整后的大小要比集合原来的大小要大，
  * 那么集合中原有元素的值不会被改变。
@@ -56,9 +48,66 @@ static intset *intsetResize(intset *is, uint32_t len) {
 	return is;
 }
 
-/* Upgrades the intset to a larger encoding and inserts the given integer.
+/* 根据集合的编码方式，将底层数组在 pos 位置上的值设为 value 。
  *
- * 根据值 value 所使用的编码方式，对整数集合的编码进行升级，
+ * T = O(1)
+ */
+static void _intsetSet(intset *is, int pos, int64_t value) {
+
+	// 取出集合的编码方式
+	uint32_t encoding = intrev32ifbe(is->encoding);
+
+	// 根据编码 ((Enc_t*)is->contents) 将数组转换回正确的类型
+	// 然后 ((Enc_t*)is->contents)[pos] 定位到数组索引上
+	// 接着 ((Enc_t*)is->contents)[pos] = value 将值赋给数组
+	// 最后， ((Enc_t*)is->contents)+pos 定位到刚刚设置的新值上 
+	// 如果有需要的话， memrevEncifbe 将对值进行大小端转换
+	if (encoding == INTSET_ENC_INT64) {
+		((int64_t*)is->contents)[pos] = value;
+		memrev64ifbe(((int64_t*)is->contents) + pos);
+	}
+	else if (encoding == INTSET_ENC_INT32) {
+		((int32_t*)is->contents)[pos] = value;
+		memrev32ifbe(((int32_t*)is->contents) + pos);
+	}
+	else {
+		((int16_t*)is->contents)[pos] = value;
+		memrev16ifbe(((int16_t*)is->contents) + pos);
+	}
+}
+
+/* 根据给定的编码方式 enc ，返回集合的底层数组在 pos 索引上的元素。
+ *
+ * T = O(1)
+ */
+static int64_t _intsetGetEncoded(intset *is, int pos, uint8_t enc) {
+	int64_t v64;
+	int32_t v32;
+	int16_t v16;
+
+	// ((ENCODING*)is->contents) 首先将数组转换回被编码的类型
+	// 然后 ((ENCODING*)is->contents)+pos 计算出元素在数组中的正确位置
+	// 之后 member(&vEnc, ..., sizeof(vEnc)) 再从数组中拷贝出正确数量的字节
+	// 如果有需要的话， memrevEncifbe(&vEnc) 会对拷贝出的字节进行大小端转换
+	// 最后将值返回
+	if (enc == INTSET_ENC_INT64) {
+		memcpy(&v64, ((int64_t*)is->contents) + pos, sizeof(v64));
+		memrev64ifbe(&v64);
+		return v64;
+	}
+	else if (enc == INTSET_ENC_INT32) {
+		memcpy(&v32, ((int32_t*)is->contents) + pos, sizeof(v32));
+		memrev32ifbe(&v32);
+		return v32;
+	}
+	else {
+		memcpy(&v16, ((int16_t*)is->contents) + pos, sizeof(v16));
+		memrev16ifbe(&v16);
+		return v16;
+	}
+}
+
+/* 根据值 value 所使用的编码方式，对整数集合的编码进行升级，
  * 并将值 value 添加到升级后的整数集合中。
  *
  * 返回值：添加新元素之后的整数集合
@@ -82,16 +131,12 @@ static intset *intsetUpgradeAndAdd(intset *is, int64_t value) {
 	// 因此，value 只能添加到底层数组的最前端或最后端
 	int prepend = value < 0 ? 1 : 0;
 
-	/* First set new encoding and resize */
 	// 更新集合的编码方式
 	is->encoding = intrev32ifbe(newenc);
 	// 根据新编码对集合（的底层数组）进行空间调整
 	// T = O(N)
 	is = intsetResize(is, intrev32ifbe(is->length) + 1);
 
-	/* Upgrade back-to-front so we don't overwrite values.
-	 * Note that the "prepend" variable is used to make sure we have an empty
-	 * space at either the beginning or the end of the intset. */
 	 // 根据集合原来的编码方式，从底层数组中取出集合元素
 	 // 然后再将元素以新编码的方式添加到集合中
 	 // 当完成了这个步骤之后，集合中所有原有的元素就完成了从旧编码到新编码的转换
@@ -131,20 +176,18 @@ static intset *intsetUpgradeAndAdd(intset *is, int64_t value) {
 	return is;
 }
 
-  /* Create an empty intset.
-   *
-   * 创建并返回一个新的空整数集合
-   *
-   * T = O(1)
-   */
-intset *intsetNew(void) 
-{
+/* 
+创建并返回一个新的空整数集合
+ *
+ * T = O(1)
+ */
+intset *intsetNew(void) {
 
 	// 为整数集合结构分配空间
 	intset *is = (intset *)malloc(sizeof(intset));
 
 	// 设置初始编码
-	is->encoding = INTSET_ENC_INT16;
+	is->encoding = intrev32ifbe(INTSET_ENC_INT16);
 
 	// 初始化元素数量
 	is->length = 0;
@@ -152,9 +195,7 @@ intset *intsetNew(void)
 	return is;
 }
 
-/* Insert an integer in the intset
- *
- * 尝试将元素 value 添加到整数集合中。
+/* 尝试将元素 value 添加到整数集合中。
  *
  * *success 的值指示添加是否成功：
  * - 如果添加成功，那么将 *success 的值设为 1 。
@@ -175,7 +216,6 @@ intset *intsetAdd(intset *is, int64_t value, uint8_t *success) {
 	 // 那么表示 value 必然可以添加到整数集合中
 	 // 并且整数集合需要对自身进行升级，才能满足 value 所需的编码
 	if (valenc > intrev32ifbe(is->encoding)) {
-		/* This always succeeds, so we don't need to curry *success. */
 		// T = O(N)
 		return intsetUpgradeAndAdd(is, value);
 	}
