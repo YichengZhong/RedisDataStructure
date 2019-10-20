@@ -25,6 +25,82 @@ static uint8_t _intsetValueEncoding(int64_t v) {
 		return INTSET_ENC_INT16;
 }
 
+/* Return the value at pos, using the configured encoding.
+ *
+ * 根据集合的编码方式，返回底层数组在 pos 索引上的值
+ *
+ * T = O(1)
+ */
+static int64_t _intsetGet(intset *is, int pos) {
+	return _intsetGetEncoded(is, pos, intrev32ifbe(is->encoding));
+}
+
+/*
+ * 向前或先后移动指定索引范围内的数组元素
+ *
+ * 函数名中的 MoveTail 其实是一个有误导性的名字，
+ * 这个函数可以向前或向后移动元素，
+ * 而不仅仅是向后
+ *
+ * 在添加新元素到数组时，就需要进行向后移动，
+ * 如果数组表示如下（？表示一个未设置新值的空间）：
+ * | x | y | z | ? |
+ *     |<----->|
+ * 而新元素 n 的 pos 为 1 ，那么数组将移动 y 和 z 两个元素
+ * | x | y | y | z |
+ *         |<----->|
+ * 接着就可以将新元素 n 设置到 pos 上了：
+ * | x | n | y | z |
+ *
+ * 当从数组中删除元素时，就需要进行向前移动，
+ * 如果数组表示如下，并且 b 为要删除的目标：
+ * | a | b | c | d |
+ *         |<----->|
+ * 那么程序就会移动 b 后的所有元素向前一个元素的位置，
+ * 从而覆盖 b 的数据：
+ * | a | c | d | d |
+ *     |<----->|
+ * 最后，程序再从数组末尾删除一个元素的空间：
+ * | a | c | d |
+ * 这样就完成了删除操作。
+ *
+ * T = O(N)
+ */
+static void intsetMoveTail(intset *is, uint32_t from, uint32_t to) {
+
+	void *src, *dst;
+
+	// 要移动的元素个数
+	uint32_t bytes = intrev32ifbe(is->length) - from;
+
+	// 集合的编码方式
+	uint32_t encoding = intrev32ifbe(is->encoding);
+
+	// 根据不同的编码
+	// src = (Enc_t*)is->contents+from 记录移动开始的位置
+	// dst = (Enc_t*)is_.contents+to 记录移动结束的位置
+	// bytes *= sizeof(Enc_t) 计算一共要移动多少字节
+	if (encoding == INTSET_ENC_INT64) {
+		src = (int64_t*)is->contents + from;
+		dst = (int64_t*)is->contents + to;
+		bytes *= sizeof(int64_t);
+	}
+	else if (encoding == INTSET_ENC_INT32) {
+		src = (int32_t*)is->contents + from;
+		dst = (int32_t*)is->contents + to;
+		bytes *= sizeof(int32_t);
+	}
+	else {
+		src = (int16_t*)is->contents + from;
+		dst = (int16_t*)is->contents + to;
+		bytes *= sizeof(int16_t);
+	}
+
+	// 进行移动
+	// T = O(N)
+	memmove(dst, src, bytes);
+}
+
 /* 调整整数集合的内存空间大小
  *
  * 如果调整后的大小要比集合原来的大小要大，
@@ -75,6 +151,72 @@ static void _intsetSet(intset *is, int pos, int64_t value) {
 		memrev16ifbe(((int16_t*)is->contents) + pos);
 	}
 }
+
+/* 在集合 is 的底层数组中查找值 value 所在的索引。
+ *
+ * 成功找到 value 时，函数返回 1 ，并将 *pos 的值设为 value 所在的索引。
+ *
+ * 当在数组中没找到 value 时，返回 0 。
+ * 并将 *pos 的值设为 value 可以插入到数组中的位置。
+ *
+ * T = O(log N)
+ */
+static uint8_t intsetSearch(intset *is, int64_t value, uint32_t *pos) {
+	int min = 0, max = intrev32ifbe(is->length) - 1, mid = -1;
+	int64_t cur = -1;
+
+	/* The value can never be found when the set is empty */
+	// 处理 is 为空时的情况
+	if (intrev32ifbe(is->length) == 0) {
+		if (pos) *pos = 0;
+		return 0;
+	}
+	else {
+		/* Check for the case where we know we cannot find the value,
+		 * but do know the insert position. */
+		 // 因为底层数组是有序的，如果 value 比数组中最后一个值都要大
+		 // 那么 value 肯定不存在于集合中，
+		 // 并且应该将 value 添加到底层数组的最末端
+		if (value > _intsetGet(is, intrev32ifbe(is->length) - 1)) {
+			if (pos) *pos = intrev32ifbe(is->length);
+			return 0;
+			// 因为底层数组是有序的，如果 value 比数组中最前一个值都要小
+			// 那么 value 肯定不存在于集合中，
+			// 并且应该将它添加到底层数组的最前端
+		}
+		else if (value < _intsetGet(is, 0)) {
+			if (pos) *pos = 0;
+			return 0;
+		}
+	}
+
+	// 在有序数组中进行二分查找
+	// T = O(log N)
+	while (max >= min) {
+		mid = (min + max) / 2;
+		cur = _intsetGet(is, mid);
+		if (value > cur) {
+			min = mid + 1;
+		}
+		else if (value < cur) {
+			max = mid - 1;
+		}
+		else {
+			break;
+		}
+	}
+
+	// 检查是否已经找到了 value
+	if (value == cur) {
+		if (pos) *pos = mid;
+		return 1;
+	}
+	else {
+		if (pos) *pos = min;
+		return 0;
+	}
+}
+
 
 /* 根据给定的编码方式 enc ，返回集合的底层数组在 pos 索引上的元素。
  *
