@@ -405,3 +405,109 @@ intset *intsetAdd(intset *is, int64_t value, uint8_t *success) {
 	// 返回添加新元素后的整数集合
 	return is;
 }
+
+/* 从整数集合中删除值 value 。
+ *
+ * *success 的值指示删除是否成功：
+ * - 因值不存在而造成删除失败时该值为 0 。
+ * - 删除成功时该值为 1 。
+ *
+ * T = O(N)
+ */
+intset *intsetRemove(intset *is, int64_t value, int *success)
+{
+	// 计算 value 的编码方式
+	uint8_t valenc = _intsetValueEncoding(value);
+	uint32_t pos;
+
+	// 默认设置标识值为删除失败
+	if (success) *success = 0;
+
+	// 当 value 的编码大小小于或等于集合的当前编码方式（说明 value 有可能存在于集合）
+	// 并且 intsetSearch 的结果为真，那么执行删除
+	// T = O(log N)
+	if (valenc <= intrev32ifbe(is->encoding) && intsetSearch(is, value, &pos)) {
+
+		// 取出集合当前的元素数量
+		uint32_t len = intrev32ifbe(is->length);
+
+		/* We know we can delete */
+		// 设置标识值为删除成功
+		if (success) *success = 1;
+
+		/* Overwrite value with tail and update length */
+		// 如果 value 不是位于数组的末尾
+		// 那么需要对原本位于 value 之后的元素进行移动
+		//
+		// 举个例子，如果数组表示如下，而 b 为删除的目标
+		// | a | b | c | d |
+		// 那么 intsetMoveTail 将 b 之后的所有数据向前移动一个元素的空间，
+		// 覆盖 b 原来的数据
+		// | a | c | d | d |
+		// 之后 intsetResize 缩小内存大小时，
+		// 数组末尾多出来的一个元素的空间将被移除
+		// | a | c | d |
+		if (pos < (len - 1)) intsetMoveTail(is, pos + 1, pos);
+		// 缩小数组的大小，移除被删除元素占用的空间
+		// T = O(N)
+		is = intsetResize(is, len - 1);
+		// 更新集合的元素数量
+		is->length = intrev32ifbe(len - 1);
+	}
+
+	return is;
+}
+
+/* 检查给定值 value 是否集合中的元素。
+ *
+ * 是返回 1 ，不是返回 0 。
+ *
+ * T = O(log N)
+ */
+uint8_t intsetFind(intset *is, int64_t value) {
+
+	// 计算 value 的编码
+	uint8_t valenc = _intsetValueEncoding(value);
+
+	// 如果 value 的编码大于集合的当前编码，那么 value 一定不存在于集合
+	// 当 value 的编码小于等于集合的当前编码时，
+	// 才再使用 intsetSearch 进行查找
+	return valenc <= intrev32ifbe(is->encoding) && intsetSearch(is, value, NULL);
+}
+
+/*
+ * 取出集合底层数组指定位置中的值，并将它保存到 value 指针中。
+ *
+ * 如果 pos 没超出数组的索引范围，那么返回 1 ，如果超出索引，那么返回 0 。
+ *
+ * p.s. 上面原文的文档说这个函数用于设置值，这是错误的。
+ *
+ * T = O(1)
+ */
+uint8_t intsetGet(intset *is, uint32_t pos, int64_t *value) 
+{
+
+	// pos < intrev32ifbe(is->length) 
+	// 检查 pos 是否符合数组的范围
+	if (pos < intrev32ifbe(is->length)) 
+	{
+
+		// 保存值到指针
+		*value = _intsetGet(is, pos);
+
+		// 返回成功指示值
+		return 1;
+	}
+
+	// 超出索引范围
+	return 0;
+}
+
+/* 返回整数集合现有的元素个数
+ *
+ * T = O(1)
+ */
+uint32_t intsetLen(intset *is) 
+{
+	return intrev32ifbe(is->length);
+}
