@@ -13,23 +13,6 @@ using namespace std;
 // 操作失败（或出错）
 #define DICT_ERR 1
 
-class IPsegment
-{
-public:
-	string StartIP;
-	string EndIP;
-};
-
-class IPPoolInfo
-{
-public:
-	string *IPPoolName;
-	string *DDNName;
-	list<IPsegment>*IPsegments;
-	long IPTotalNums;
-	long IPUsedNums;
-};
-
 /*
  * 哈希表节点
  */
@@ -37,10 +20,10 @@ typedef struct dictEntry
 {
 
 	// 键
-	string *IPPoolName;
+	string *dictNodeName;
 
 	// 值
-	IPPoolInfo *pt_IPPoolInfo;
+	int *pt_dictNodeValue;
 
 	// 指向下个哈希表节点，形成链表
 	struct dictEntry *next;
@@ -86,7 +69,7 @@ typedef struct dict {
 // 查看字典是否正在 rehash
 #define dictIsRehashing(ht) ((ht)->rehashidx != -1)
 
-// 根据地址池名，计算给定键的哈希值
+// 计算给定键的哈希值
 unsigned int dictHashKey(const string *IPPoolName);
 
 //比较两个key是否相等
@@ -103,7 +86,7 @@ int _dictInit(dict *d);
 void _dictReset(dictht *ht);
 
 //新增一个键值对
-int dictAdd(dict *d, string *IPPoolName, IPPoolInfo *pt_IPPoolInfo);
+int dictAdd(dict *d, string *dictNodeName, int *pt_dictNodeValue);
 
 dictEntry *dictAddRaw(dict *d, string *IPPoolName);
 
@@ -125,4 +108,4 @@ int dictExpand(dict *d, unsigned long size);
 
 unsigned long _dictNextPower(unsigned long size);
 
-void dictSetVal(dict *d, dictEntry *entry, IPPoolInfo *pt_IPPoolInfo);
+void dictSetVal(dict *d, dictEntry *entry, int  *pt_dictNodeValue);
